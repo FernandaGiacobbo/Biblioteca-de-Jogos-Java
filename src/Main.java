@@ -32,6 +32,11 @@ public class Main extends Application {
         Button btnRemover = new Button("Remover");
         Button btnBuscar = new Button("Buscar");
         Button btnOrdenar = new Button("Ordenar");
+        Button btnFiltrar = new Button("Filtrar");
+        Button btnLimparFiltro = new Button("Limpar Filtro");
+        btnLimparFiltro.setOnAction(e -> atualizarLista());
+
+
 
         // Configura tabela
         TableColumn<Jogo, String> colTitulo = new TableColumn<>("Título");
@@ -48,7 +53,7 @@ public class Main extends Application {
         tabelaView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 
         // Layout dos campos
-        HBox campos = new HBox(10, tituloField, generoField, anoField, btnInserir, btnRemover, btnBuscar, btnOrdenar);
+        HBox campos = new HBox(10, tituloField, generoField, anoField, btnInserir, btnRemover, btnBuscar, btnOrdenar, btnFiltrar, btnLimparFiltro);
         campos.setPadding(new Insets(10));
 
         VBox layout = new VBox(10, campos, tabelaView);
@@ -90,28 +95,101 @@ public class Main extends Application {
         });
 
         btnOrdenar.setOnAction(e -> {
-            ChoiceDialog<String> dialog = new ChoiceDialog<>("titulo", "titulo", "genero", "ano");
-            dialog.setTitle("Ordenar Jogos");
-            dialog.setHeaderText("Escolha o critério de ordenação:");
-            dialog.setContentText("Critério:");
+            // Escolher critério
+            ChoiceDialog<String> criterioDialog = new ChoiceDialog<>("titulo", "titulo", "genero", "ano");
+            criterioDialog.setTitle("Ordenar Jogos");
+            criterioDialog.setHeaderText("Escolha o critério de ordenação:");
+            criterioDialog.setContentText("Critério:");
 
-            dialog.showAndWait().ifPresent(criterio -> {
-                Jogo[] jogos = tabela.exportar();
-                if (jogos.length == 0) {
-                    mostrarAlerta("Aviso", "Nenhum jogo cadastrado!");
-                    return;
-                }
+            criterioDialog.showAndWait().ifPresent(criterio -> {
+                // Escolher algoritmo
+                ChoiceDialog<String> algoritmoDialog = new ChoiceDialog<>("QuickSort", "QuickSort", "BubbleSort", "InsertionSort");
+                algoritmoDialog.setTitle("Tipo de Ordenação");
+                algoritmoDialog.setHeaderText("Escolha o algoritmo de ordenação:");
+                algoritmoDialog.setContentText("Algoritmo:");
 
-                switch (criterio) {
-                    case "titulo" -> Ordenacao.quickSort(jogos, 0, jogos.length - 1, "titulo");
-                    case "genero" -> Ordenacao.insertionSort(jogos, "genero");
-                    case "ano" -> Ordenacao.quickSort(jogos, 0, jogos.length - 1, "ano");
-                }
+                algoritmoDialog.showAndWait().ifPresent(algoritmo -> {
+                    Jogo[] jogos = tabela.exportar();
+                    if (jogos.length == 0) {
+                        mostrarAlerta("Aviso", "Nenhum jogo cadastrado!");
+                        return;
+                    }
 
-                jogosList.setAll(jogos);
-                mostrarAlerta("Ordenado", "Jogos ordenados por " + criterio + "!");
+                    long inicio = System.nanoTime(); // ⏱️ começa a medir o tempo
+
+                    switch (algoritmo.toLowerCase()) {
+                        case "bubblesort" -> Ordenacao.bubbleSort(jogos, criterio);
+                        case "insertionsort" -> Ordenacao.insertionSort(jogos, criterio);
+                        case "quicksort" -> Ordenacao.quickSort(jogos, 0, jogos.length - 1, criterio);
+                    }
+
+                    long fim = System.nanoTime(); // ⏱️ fim da medição
+                    double tempoMs = (fim - inicio) / 1_000_000.0;
+
+                    //Mostrar na interface
+                    jogosList.setAll(jogos);
+                    mostrarAlerta("Ordenado", "Jogos ordenados por " + criterio + " usando " + algoritmo + "!");
+
+                    //Mostrar no terminal
+                    System.out.println("=================================");
+                    System.out.println("Algoritmo usado: " + algoritmo);
+                    System.out.println("Critério: " + criterio);
+                    System.out.printf("Tempo de execução: %.3f ms%n", tempoMs);
+                    System.out.println("=================================");
+                });
             });
         });
+        btnFiltrar.setOnAction(e -> {
+            ChoiceDialog<String> criterioDialog = new ChoiceDialog<>("ano", "titulo", "genero", "ano");
+            criterioDialog.setTitle("Filtrar Jogos");
+            criterioDialog.setHeaderText("Escolha o critério de filtro:");
+            criterioDialog.setContentText("Critério:");
+
+            criterioDialog.showAndWait().ifPresent(criterio -> {
+                TextInputDialog valorDialog = new TextInputDialog();
+                valorDialog.setTitle("Valor do Filtro");
+                valorDialog.setHeaderText("Digite o valor para filtrar por " + criterio + ":");
+                valorDialog.setContentText("Valor:");
+
+                valorDialog.showAndWait().ifPresent(valor -> {
+                    Jogo[] todos = tabela.exportar();
+                    ObservableList<Jogo> filtrados = FXCollections.observableArrayList();
+
+                    for (Jogo j : todos) {
+                        switch (criterio) {
+                            case "titulo" -> {
+                                if (j.getTitulo().toLowerCase().contains(valor.toLowerCase()))
+                                    filtrados.add(j);
+                            }
+                            case "genero" -> {
+                                if (j.getGenero().equalsIgnoreCase(valor))
+                                    filtrados.add(j);
+                            }
+                            case "ano" -> {
+                                try {
+                                    int anoFiltro = Integer.parseInt(valor);
+                                    if (j.getAno() == anoFiltro)
+                                        filtrados.add(j);
+                                } catch (NumberFormatException ex) {
+                                    mostrarAlerta("Erro", "Digite um ano válido!");
+                                    return;
+                                }
+                            }
+                        }
+                    }
+
+                    jogosList.setAll(filtrados);
+
+                    mostrarAlerta("Filtro aplicado",
+                            "Mostrando apenas jogos com " + criterio + " = " + valor +
+                                    " (" + filtrados.size() + " encontrados)");
+
+                    System.out.println("Filtro ativo: " + criterio + " = " + valor);
+                });
+            });
+        });
+
+
 
         stage.setScene(new Scene(layout, 900, 400));
         stage.show();
