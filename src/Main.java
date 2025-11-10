@@ -1,97 +1,139 @@
-import java.util.Scanner;
+import javafx.application.Application;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
+import javafx.stage.Stage;
 
-public class Main {
-    public static void main(String[] args) {
-        Scanner sc = new Scanner(System.in);
-        TabelaHash tabela = new TabelaHash(10);
-        int opcao;
+public class Main extends Application {
 
-        do {
-            System.out.println("\nBIBLIOTECA DE JOGOS");
-            System.out.println("1. Inserir jogo");
-            System.out.println("2. Remover jogo");
-            System.out.println("3. Buscar jogo");
-            System.out.println("4. Exibir todos");
-            System.out.println("5. Ordenar jogos");
-            System.out.println("0. Sair");
-            System.out.print("Escolha: ");
-            opcao = sc.nextInt();
-            sc.nextLine();
+    private TabelaHash tabela = new TabelaHash(10);
+    private ObservableList<Jogo> jogosList = FXCollections.observableArrayList();
+    private TableView<Jogo> tabelaView = new TableView<>();
 
-            switch (opcao) {
-                case 1 -> {
-                    System.out.print("Título: ");
-                    String titulo = sc.nextLine();
-                    System.out.print("Gênero: ");
-                    String genero = sc.nextLine();
-                    System.out.print("Ano: ");
-                    int ano = sc.nextInt();
-                    tabela.inserir(new Jogo(titulo, genero, ano));
-                    System.out.println("Jogo adicionado com sucesso!");
-                }
+    @Override
+    public void start(Stage stage) {
+        stage.setTitle("Biblioteca de Jogos");
 
-                case 2 -> {
-                    System.out.print("Título para remover: ");
-                    String titulo = sc.nextLine();
-                    if (tabela.remover(titulo)) System.out.println("Removido!");
-                    else System.out.println("Não encontrado!");
-                }
+        // Campos de entrada
+        TextField tituloField = new TextField();
+        tituloField.setPromptText("Título");
 
-                case 3 -> {
-                    System.out.print("Título para buscar: ");
-                    String titulo = sc.nextLine();
-                    Jogo j = tabela.buscar(titulo);
-                    System.out.println(j != null ? j : "Não encontrado!");
-                }
+        TextField generoField = new TextField();
+        generoField.setPromptText("Gênero");
 
-                case 4 -> tabela.exibirTodos();
+        TextField anoField = new TextField();
+        anoField.setPromptText("Ano");
 
-                case 5 -> {
-                    Jogo[] jogos = tabela.exportar();
-                    if (jogos.length == 0) {
-                        System.out.println("Nenhum jogo cadastrado!");
-                        break;
-                    }
+        // Botões
+        Button btnInserir = new Button("Inserir");
+        Button btnRemover = new Button("Remover");
+        Button btnBuscar = new Button("Buscar");
+        Button btnOrdenar = new Button("Ordenar");
 
-                    System.out.print("Ordenar por (titulo/genero/ano): ");
-                    String criterio = sc.nextLine().toLowerCase();
+        // Configura tabela
+        TableColumn<Jogo, String> colTitulo = new TableColumn<>("Título");
+        colTitulo.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getTitulo()));
 
-                    System.out.println("\nEscolhendo melhor algoritmo...");
-                    switch (criterio) {
-                        case "titulo" -> {
-                            if (jogos.length <= 15) {
-                                System.out.println("Poucos jogos → usando InsertionSort (mais leve e estável)");
-                                Ordenacao.insertionSort(jogos, "titulo");
-                            } else {
-                                System.out.println("Muitos jogos → usando QuickSort (mais eficiente)");
-                                Ordenacao.quickSort(jogos, 0, jogos.length - 1, "titulo");
-                            }
-                        }
+        TableColumn<Jogo, String> colGenero = new TableColumn<>("Gênero");
+        colGenero.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getGenero()));
 
-                        case "genero" -> {
-                            System.out.println("Ordenando por gênero → usando InsertionSort (mantém ordem de títulos iguais)");
-                            Ordenacao.insertionSort(jogos, "genero");
-                        }
+        TableColumn<Jogo, String> colAno = new TableColumn<>("Ano");
+        colAno.setCellValueFactory(c -> new javafx.beans.property.SimpleStringProperty(String.valueOf(c.getValue().getAno())));
 
-                        case "ano" -> {
-                            System.out.println("Ordenando por ano → usando QuickSort (mais rápido para números)");
-                            Ordenacao.quickSort(jogos, 0, jogos.length - 1, "ano");
-                        }
+        tabelaView.getColumns().addAll(colTitulo, colGenero, colAno);
+        tabelaView.setItems(jogosList);
+        tabelaView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
 
-                        default -> {
-                            System.out.println("Critério inválido!");
-                            break;
-                        }
-                    }
+        // Layout dos campos
+        HBox campos = new HBox(10, tituloField, generoField, anoField, btnInserir, btnRemover, btnBuscar, btnOrdenar);
+        campos.setPadding(new Insets(10));
 
-                    System.out.println("\n--- Jogos ordenados ---");
-                    Ordenacao.exibir(jogos);
-                }
+        VBox layout = new VBox(10, campos, tabelaView);
+        layout.setPadding(new Insets(10));
 
-                case 0 -> System.out.println("Saindo...");
-                default -> System.out.println("Opção inválida!");
+        // Eventos dos botões
+        btnInserir.setOnAction(e -> {
+            try {
+                String titulo = tituloField.getText();
+                String genero = generoField.getText();
+                int ano = Integer.parseInt(anoField.getText());
+                tabela.inserir(new Jogo(titulo, genero, ano));
+                atualizarLista();
+                limparCampos(tituloField, generoField, anoField);
+                mostrarAlerta("Sucesso", "Jogo adicionado com sucesso!");
+            } catch (Exception ex) {
+                mostrarAlerta("Erro", "Preencha todos os campos corretamente!");
             }
+        });
 
-        } while (opcao != 0);
+        btnRemover.setOnAction(e -> {
+            String titulo = tituloField.getText();
+            if (tabela.remover(titulo)) {
+                atualizarLista();
+                mostrarAlerta("Sucesso", "Jogo removido!");
+            } else {
+                mostrarAlerta("Erro", "Jogo não encontrado!");
+            }
+        });
+
+        btnBuscar.setOnAction(e -> {
+            String titulo = tituloField.getText();
+            Jogo j = tabela.buscar(titulo);
+            if (j != null) {
+                mostrarAlerta("Encontrado", j.toString());
+            } else {
+                mostrarAlerta("Erro", "Jogo não encontrado!");
+            }
+        });
+
+        btnOrdenar.setOnAction(e -> {
+            ChoiceDialog<String> dialog = new ChoiceDialog<>("titulo", "titulo", "genero", "ano");
+            dialog.setTitle("Ordenar Jogos");
+            dialog.setHeaderText("Escolha o critério de ordenação:");
+            dialog.setContentText("Critério:");
+
+            dialog.showAndWait().ifPresent(criterio -> {
+                Jogo[] jogos = tabela.exportar();
+                if (jogos.length == 0) {
+                    mostrarAlerta("Aviso", "Nenhum jogo cadastrado!");
+                    return;
+                }
+
+                switch (criterio) {
+                    case "titulo" -> Ordenacao.quickSort(jogos, 0, jogos.length - 1, "titulo");
+                    case "genero" -> Ordenacao.insertionSort(jogos, "genero");
+                    case "ano" -> Ordenacao.quickSort(jogos, 0, jogos.length - 1, "ano");
+                }
+
+                jogosList.setAll(jogos);
+                mostrarAlerta("Ordenado", "Jogos ordenados por " + criterio + "!");
+            });
+        });
+
+        stage.setScene(new Scene(layout, 900, 400));
+        stage.show();
+    }
+
+    private void atualizarLista() {
+        jogosList.setAll(tabela.exportar());
+    }
+
+    private void limparCampos(TextField... campos) {
+        for (TextField f : campos) f.clear();
+    }
+
+    private void mostrarAlerta(String titulo, String mensagem) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(titulo);
+        alert.setHeaderText(null);
+        alert.setContentText(mensagem);
+        alert.showAndWait();
+    }
+
+    public static void main(String[] args) {
+        launch();
     }
 }
